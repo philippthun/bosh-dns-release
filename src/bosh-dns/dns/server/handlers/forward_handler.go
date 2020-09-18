@@ -20,6 +20,7 @@ type ForwardHandler struct {
 	logger           logger.Logger
 	logTag           string
 	truncater        dnsresolver.ResponseTruncater
+	next             dns.Handler
 }
 
 //go:generate counterfeiter . Exchanger
@@ -34,7 +35,7 @@ type Cache interface {
 	GetExpired(*dns.Msg) *dns.Msg
 }
 
-func NewForwardHandler(recursors RecursorPool, exchangerFactory ExchangerFactory, clock clock.Clock, logger logger.Logger, truncater dnsresolver.ResponseTruncater) ForwardHandler {
+func NewForwardHandler(recursors RecursorPool, exchangerFactory ExchangerFactory, clock clock.Clock, logger logger.Logger, truncater dnsresolver.ResponseTruncater, next dns.Handler) ForwardHandler {
 	return ForwardHandler{
 		recursors:        recursors,
 		exchangerFactory: exchangerFactory,
@@ -42,6 +43,7 @@ func NewForwardHandler(recursors RecursorPool, exchangerFactory ExchangerFactory
 		logger:           logger,
 		logTag:           "ForwardHandler",
 		truncater:        truncater,
+		next:             next,
 	}
 }
 
@@ -51,7 +53,10 @@ func (r ForwardHandler) ServeDNS(responseWriter dns.ResponseWriter, request *dns
 
 	if len(request.Question) == 0 {
 		r.writeEmptyMessage(responseWriter, request)
-		return
+		if r.next != nil {
+			r.next.ServeDNS(responseWriter, request)
+		}
+	  return
 	}
 
 	network := r.network(responseWriter)
@@ -92,6 +97,10 @@ func (r ForwardHandler) ServeDNS(responseWriter dns.ResponseWriter, request *dns
 
 	if err != nil {
 		r.writeNoResponseMessage(responseWriter, request, before, "error=["+err.Error()+"]")
+	}
+
+	if r.next != nil {
+		r.next.ServeDNS(responseWriter, request)
 	}
 }
 

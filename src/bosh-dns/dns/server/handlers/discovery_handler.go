@@ -11,13 +11,15 @@ type DiscoveryHandler struct {
 	logger      logger.Logger
 	logTag      string
 	localDomain dnsresolver.LocalDomain
+	next        dns.Handler
 }
 
-func NewDiscoveryHandler(logger logger.Logger, localDomain dnsresolver.LocalDomain) DiscoveryHandler {
+func NewDiscoveryHandler(logger logger.Logger, localDomain dnsresolver.LocalDomain, next dns.Handler) DiscoveryHandler {
 	return DiscoveryHandler{
 		logger:      logger,
 		logTag:      "DiscoveryHandler",
 		localDomain: localDomain,
+		next:        next,
 	}
 }
 
@@ -44,5 +46,9 @@ func (d DiscoveryHandler) ServeDNS(responseWriter dns.ResponseWriter, requestMsg
 	d.logger.Debug(d.logTag, "Replying to %d", requestMsg.Id)
 	if err := responseWriter.WriteMsg(responseMsg); err != nil {
 		d.logger.Error(d.logTag, err.Error())
+	}
+
+	if d.next != nil {
+		d.next.ServeDNS(responseWriter, requestMsg)
 	}
 }

@@ -50,7 +50,7 @@ func (f *Factory) CreateForwardHandler(recursors []string, cache bool) dns.Handl
 	// The default behavior defined by DNS spec is to use
 	// "smart" recursor selection.
 	pool := NewFailoverRecursorPool(f.shuffler.Shuffle(recursors), config.SmartRecursorSelection, f.logger)
-	handler = NewForwardHandler(pool, f.exchangerFactory, f.clock, f.logger, f.truncater)
+	handler = NewForwardHandler(pool, f.exchangerFactory, f.clock, f.logger, f.truncater, nil)
 
 	if cache {
 		handler = NewCachingDNSHandler(handler, f.truncater, f.clock, f.logger)

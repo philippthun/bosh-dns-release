@@ -157,7 +157,20 @@ func mainExitCode() int {
 
 	recursorPool := handlers.NewFailoverRecursorPool(config.Recursors, config.RecursorSelection, logger)
 	exchangerFactory := handlers.NewExchangerFactory(time.Duration(config.RecursorTimeout))
-	forwardHandler := handlers.NewForwardHandler(recursorPool, exchangerFactory, clock, logger, truncater)
+
+	var (
+		nextInternalHandler  dns.Handler
+		nextExternalHandler  dns.Handler
+		metricsServerWrapper *monitoring.MetricsServerWrapper
+	)
+
+	if config.Metrics.Enabled {
+		metricsAddr := fmt.Sprintf("%s:%d", config.Metrics.Address, config.Metrics.Port)
+		metricsServerWrapper = monitoring.NewMetricsServerWrapper(logger, monitoring.MetricsServer(metricsAddr))
+		nextExternalHandler = handlers.NewMetricsDNSHandler(metricsServerWrapper.MetricsReporter())
+		nextInternalHandler = handlers.NewMetricsDNSHandler(metricsServerWrapper.MetricsReporter())
+	}
+	forwardHandler := handlers.NewForwardHandler(recursorPool, exchangerFactory, clock, logger, truncater, nextExternalHandler)
 
 	mux.Handle("arpa.", handlers.NewRequestLoggerHandler(handlers.NewArpaHandler(logger, recordSet, forwardHandler), clock, logger))
 
@@ -190,17 +203,8 @@ func mainExitCode() int {
 		}
 	}
 
-	var (
-		nextInternalHandler  dns.Handler = handlers.NewDiscoveryHandler(logger, localDomain)
-		nextExternalHandler  dns.Handler = forwardHandler
-		metricsServerWrapper *monitoring.MetricsServerWrapper
-	)
-	if config.Metrics.Enabled {
-		metricsAddr := fmt.Sprintf("%s:%d", config.Metrics.Address, config.Metrics.Port)
-		metricsServerWrapper = monitoring.NewMetricsServerWrapper(logger, monitoring.MetricsServer(metricsAddr))
-		nextExternalHandler = handlers.NewMetricsDNSHandler(metricsServerWrapper.MetricsReporter(), nextExternalHandler)
-		nextInternalHandler = handlers.NewMetricsDNSHandler(metricsServerWrapper.MetricsReporter(), nextInternalHandler)
-	}
+	nextInternalHandler = handlers.NewDiscoveryHandler(logger, localDomain, nextInternalHandler)
+	nextExternalHandler = forwardHandler
 	if config.Cache.Enabled {
 		nextExternalHandler = handlers.NewCachingDNSHandler(nextExternalHandler, truncater, clock, logger)
 	}

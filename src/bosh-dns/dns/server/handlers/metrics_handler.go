@@ -12,14 +12,12 @@ type MetricsDNSHandler struct {
 	next            dns.Handler
 }
 
-func NewMetricsDNSHandler(metricsReporter monitoring.MetricsReporter, next dns.Handler) MetricsDNSHandler {
+func NewMetricsDNSHandler(metricsReporter monitoring.MetricsReporter) MetricsDNSHandler {
 	return MetricsDNSHandler{
 		metricsReporter: metricsReporter,
-		next:            next,
 	}
 }
 
 func (m MetricsDNSHandler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	m.metricsReporter.Report(context.Background(), w, r)
-	m.next.ServeDNS(w, r)
 }
