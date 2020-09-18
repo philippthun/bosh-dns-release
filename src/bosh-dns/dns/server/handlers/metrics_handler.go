@@ -20,6 +20,6 @@ func NewMetricsDNSHandler(metricsReporter monitoring.MetricsReporter, next dns.H
 }
 
 func (m MetricsDNSHandler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
-	m.metricsReporter.Report(context.Background(), w, r)
 	m.next.ServeDNS(w, r)
+	m.metricsReporter.Report(context.Background(), w, r)
 }
