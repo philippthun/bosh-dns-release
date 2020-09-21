@@ -29,7 +29,7 @@ type FakeMetricsReporter struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeMetricsReporter) Report(arg1 context.Context, arg2 dns.ResponseWriter, arg3 *dns.Msg) (int, error) {
+func (fake *FakeMetricsReporter) Report(next dns.Handler, arg1 context.Context, arg2 dns.ResponseWriter, arg3 *dns.Msg) (int, error) {
 	fake.reportMutex.Lock()
 	ret, specificReturn := fake.reportReturnsOnCall[len(fake.reportArgsForCall)]
 	fake.reportArgsForCall = append(fake.reportArgsForCall, struct {

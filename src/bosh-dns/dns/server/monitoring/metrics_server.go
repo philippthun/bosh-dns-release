@@ -13,7 +13,7 @@ import (
 //go:generate counterfeiter . CoreDNSMetricsServer
 
 type MetricsReporter interface {
-	Report(context.Context, dns.ResponseWriter, *dns.Msg) (int, error)
+	Report(dns.Handler, context.Context, dns.ResponseWriter, *dns.Msg) (int, error)
 }
 
 type CoreDNSMetricsServer interface {
@@ -44,7 +44,22 @@ func (m *MetricsServerWrapper) MetricsReporter() MetricsReporter {
 	return m
 }
 
-func (m *MetricsServerWrapper) Report(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) (int, error) {
+type HandlerWrapper struct {
+	DNSHandler dns.Handler
+}
+
+func(h HandlerWrapper) Name() string {
+	return "dummy"
+}
+
+func(h HandlerWrapper) ServeDNS(ctx context.Context, writer dns.ResponseWriter, m *dns.Msg) (int, error) {
+	h.DNSHandler.ServeDNS(writer, m)
+	return 0, nil
+}
+
+func (m *MetricsServerWrapper) Report(next dns.Handler, ctx context.Context, w dns.ResponseWriter, r *dns.Msg) (int, error) {
+  pluginHandler := HandlerWrapper{DNSHandler: next}
+	m.coreDNSServer.(*metrics.Metrics).Next = pluginHandler
 	return m.coreDNSServer.ServeDNS(ctx, w, r)
 }
 
